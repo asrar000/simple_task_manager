@@ -165,6 +165,14 @@ def add_task_ui():
     conn.close()
 
     return redirect(url_for("tasks_page"))
+@app.route("/tasks/delete/<int:task_id>")
+def delete_task_ui(task_id):
+    log(f"Deleting task {task_id}")
+    conn = get_db()
+    conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("tasks_page"))
 
 
 @app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
