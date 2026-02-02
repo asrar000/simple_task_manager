@@ -9,6 +9,16 @@
 
     <h2>Tasks</h2>
 
+    <form method="get" class="filter">
+        <select name="status">
+            <option value="">All</option>
+            <option value="todo">Todo</option>
+            <option value="in_progress">In Progress</option>
+            <option value="done">Done</option>
+        </select>
+        <button type="submit">Filter</button>
+    </form>
+
     <div class="task-list">
         {% for task in tasks %}
         <div class="task">
