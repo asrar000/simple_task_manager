@@ -7,34 +7,39 @@
 <body>
 <div class="container">
 
-    <h2>Tasks</h2>
+<h2>Tasks</h2>
 
-    <form method="get" class="filter">
-        <select name="status">
-            <option value="">All</option>
-            <option value="todo">Todo</option>
-            <option value="in_progress">In Progress</option>
-            <option value="done">Done</option>
-        </select>
-        <button type="submit">Filter</button>
-    </form>
+<form method="get" class="filter">
+    <select name="status">
+        <option value="">All</option>
+        <option value="todo">Todo</option>
+        <option value="in_progress">In Progress</option>
+        <option value="done">Done</option>
+    </select>
+    <button type="submit">Filter</button>
+</form>
 
-    <div class="task-list">
-        {% for task in tasks %}
-        <div class="task">
-            <div>
-                <strong>{{ task["title"] }}</strong><br>
-                {{ task["description"] or "" }}<br>
-                Status: {{ task["status"] }}<br>
-                Due: {{ task["due_date"] or "N/A" }}
-            </div>
+<table>
+    <tr>
+        <th>Title</th>
+        <th>Status</th>
+        <th>Due Date</th>
+        <th>Action</th>
+    </tr>
 
+    {% for task in tasks %}
+    <tr>
+        <td>{{ task["title"] }}</td>
+        <td>{{ task["status"] }}</td>
+        <td>{{ task["due_date"] or "N/A" }}</td>
+        <td>
             {% if task["status"] != "done" %}
             <a href="/tasks/done/{{ task['id'] }}">Mark Done</a>
             {% endif %}
-        </div>
-        {% endfor %}
-    </div>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
 
 </div>
 </body>
