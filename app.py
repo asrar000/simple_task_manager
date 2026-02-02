@@ -5,6 +5,8 @@ from datetime import datetime
 app = Flask(__name__)
 DB_PATH = "data/tasks.db"
 
+VALID_STATUS = ["todo", "in_progress", "done"]
+
 
 # ---------- DB ----------
 def get_db():
@@ -38,7 +40,7 @@ def create_task():
         return jsonify({"error": "title is required"}), 400
 
     status = data.get("status", "todo")
-    if status not in ["todo", "in_progress", "done"]:
+    if status not in VALID_STATUS:
         return jsonify({"error": "invalid status"}), 400
 
     conn = get_db()
@@ -65,6 +67,7 @@ def create_task():
 def list_tasks():
     status = request.args.get("status")
     q = request.args.get("q")
+    sort = request.args.get("sort")
 
     query = "SELECT * FROM tasks WHERE 1=1"
     params = []
@@ -77,11 +80,63 @@ def list_tasks():
         query += " AND (title LIKE ? OR description LIKE ?)"
         params.extend([f"%{q}%", f"%{q}%"])
 
+    if sort in ["due_date", "created_at"]:
+        query += f" ORDER BY {sort}"
+
     conn = get_db()
     tasks = conn.execute(query, params).fetchall()
     conn.close()
 
     return jsonify([dict(task) for task in tasks])
+
+
+@app.route("/api/tasks/<int:task_id>", methods=["GET"])
+def get_task(task_id):
+    conn = get_db()
+    task = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+    conn.close()
+
+    if not task:
+        return jsonify({"error": "task not found"}), 404
+
+    return jsonify(dict(task))
+
+
+@app.route("/api/tasks/<int:task_id>", methods=["PUT"])
+def update_task(task_id):
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "no data provided"}), 400
+
+    if "status" in data and data["status"] not in VALID_STATUS:
+        return jsonify({"error": "invalid status"}), 400
+
+    fields = []
+    values = []
+
+    for key in ["title", "description", "status", "due_date"]:
+        if key in data:
+            fields.append(f"{key}=?")
+            values.append(data[key])
+
+    if not fields:
+        return jsonify({"error": "nothing to update"}), 400
+
+    values.append(task_id)
+
+    conn = get_db()
+    cur = conn.execute(
+        f"UPDATE tasks SET {', '.join(fields)} WHERE id=?",
+        values
+    )
+    conn.commit()
+    conn.close()
+
+    if cur.rowcount == 0:
+        return jsonify({"error": "task not found"}), 404
+
+    return jsonify({"message": "updated"})
 
 
 @app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
@@ -105,9 +160,19 @@ def index():
 
 @app.route("/tasks")
 def tasks_page():
+    status = request.args.get("status")
+
+    query = "SELECT * FROM tasks"
+    params = []
+
+    if status:
+        query += " WHERE status=?"
+        params.append(status)
+
     conn = get_db()
-    tasks = conn.execute("SELECT * FROM tasks").fetchall()
+    tasks = conn.execute(query, params).fetchall()
     conn.close()
+
     return render_template("tasks.html", tasks=tasks)
 
 
