@@ -12,6 +12,12 @@ body {
     padding: 20px;
 }
 
+.filter {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
 .task-list {
     display: flex;
     flex-direction: column;
