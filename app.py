@@ -141,38 +141,8 @@ def update_task(task_id):
         return jsonify({"error": "task not found"}), 404
 
     return jsonify({"message": "task updated"}), 200
-@app.route("/tasks/add", methods=["POST"])
-def add_task_ui():
-    title = request.form.get("title")
-    description = request.form.get("description")
-    due_date = request.form.get("due_date")
 
-    if not title:
-        return jsonify({"error": "title is required"}), 400
 
-    conn = get_db()
-    conn.execute("""
-        INSERT INTO tasks (title, description, status, created_at, due_date)
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        title,
-        description,
-        "todo",
-        datetime.utcnow().isoformat(),
-        due_date
-    ))
-    conn.commit()
-    conn.close()
-
-    return redirect(url_for("tasks_page"))
-@app.route("/tasks/delete/<int:task_id>")
-def delete_task_ui(task_id):
-    log(f"Deleting task {task_id}")
-    conn = get_db()
-    conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
-    conn.commit()
-    conn.close()
-    return redirect(url_for("tasks_page"))
 
 
 @app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
