@@ -4,11 +4,14 @@ from datetime import datetime
 
 app = Flask(__name__)
 DB_PATH = "data/tasks.db"
-
 VALID_STATUS = ["todo", "in_progress", "done"]
 
 
-# ---------- DB ----------
+# ---------- UTIL ----------
+def log(msg):
+    print(f"[LOG] {msg}")
+
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -16,13 +19,14 @@ def get_db():
 
 
 def init_db():
+    log("Initializing database")
     conn = get_db()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             description TEXT,
-            status TEXT DEFAULT 'todo',
+            status TEXT,
             created_at TEXT,
             due_date TEXT
         )
@@ -35,6 +39,7 @@ def init_db():
 @app.route("/api/tasks", methods=["POST"])
 def create_task():
     data = request.get_json()
+    log("POST /api/tasks")
 
     if not data or not data.get("title"):
         return jsonify({"error": "title is required"}), 400
@@ -56,15 +61,14 @@ def create_task():
         data.get("due_date")
     ))
     conn.commit()
-
-    task_id = cur.lastrowid
     conn.close()
 
-    return jsonify({"id": task_id}), 201
+    return jsonify({"message": "task created"}), 201
 
 
 @app.route("/api/tasks", methods=["GET"])
 def list_tasks():
+    log("GET /api/tasks")
     status = request.args.get("status")
     q = request.args.get("q")
     sort = request.args.get("sort")
@@ -87,11 +91,12 @@ def list_tasks():
     tasks = conn.execute(query, params).fetchall()
     conn.close()
 
-    return jsonify([dict(task) for task in tasks])
+    return jsonify([dict(t) for t in tasks]), 200
 
 
 @app.route("/api/tasks/<int:task_id>", methods=["GET"])
 def get_task(task_id):
+    log(f"GET /api/tasks/{task_id}")
     conn = get_db()
     task = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
     conn.close()
@@ -99,11 +104,12 @@ def get_task(task_id):
     if not task:
         return jsonify({"error": "task not found"}), 404
 
-    return jsonify(dict(task))
+    return jsonify(dict(task)), 200
 
 
 @app.route("/api/tasks/<int:task_id>", methods=["PUT"])
 def update_task(task_id):
+    log(f"PUT /api/tasks/{task_id}")
     data = request.get_json()
 
     if not data:
@@ -112,13 +118,11 @@ def update_task(task_id):
     if "status" in data and data["status"] not in VALID_STATUS:
         return jsonify({"error": "invalid status"}), 400
 
-    fields = []
-    values = []
-
-    for key in ["title", "description", "status", "due_date"]:
-        if key in data:
-            fields.append(f"{key}=?")
-            values.append(data[key])
+    fields, values = [], []
+    for k in ["title", "description", "status", "due_date"]:
+        if k in data:
+            fields.append(f"{k}=?")
+            values.append(data[k])
 
     if not fields:
         return jsonify({"error": "nothing to update"}), 400
@@ -136,11 +140,12 @@ def update_task(task_id):
     if cur.rowcount == 0:
         return jsonify({"error": "task not found"}), 404
 
-    return jsonify({"message": "updated"})
+    return jsonify({"message": "task updated"}), 200
 
 
 @app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
 def delete_task(task_id):
+    log(f"DELETE /api/tasks/{task_id}")
     conn = get_db()
     cur = conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
     conn.commit()
@@ -149,19 +154,18 @@ def delete_task(task_id):
     if cur.rowcount == 0:
         return jsonify({"error": "task not found"}), 404
 
-    return jsonify({"message": "deleted"})
+    return jsonify({"message": "task deleted"}), 200
 
 
 # ---------- FRONTEND ----------
 @app.route("/")
-def index():
+def home():
     return render_template("index.html")
 
 
 @app.route("/tasks")
 def tasks_page():
     status = request.args.get("status")
-
     query = "SELECT * FROM tasks"
     params = []
 
@@ -178,6 +182,7 @@ def tasks_page():
 
 @app.route("/tasks/done/<int:task_id>")
 def mark_done(task_id):
+    log(f"Marking task {task_id} done")
     conn = get_db()
     conn.execute("UPDATE tasks SET status='done' WHERE id=?", (task_id,))
     conn.commit()
